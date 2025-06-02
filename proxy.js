@@ -4,17 +4,23 @@ const CryptoJS = require("crypto-js");
 const cors = require("cors");
 
 const app = express();
+const port = process.env.PORT || 3001;
+
+// ✅ CORS Middleware
 app.use(
   cors({
-    origin: "http://andrianprabowo.my.id", // Atau "*" untuk semua origin (tidak disarankan di production)
+    origin: "*", // Ganti dengan domain spesifik jika sudah produksi
     methods: "GET,POST",
     allowedHeaders: "Content-Type,Authorization",
   })
 );
-// const port = 3001;
-const port = process.env.PORT || 3001;
 
-// OAuth Credentials (pastikan ini sudah benar)
+// ✅ Health check endpoint
+app.get("/", (req, res) => {
+  res.send("✅ Proxy is running!");
+});
+
+// ✅ NetSuite OAuth credentials
 const url =
   "https://td2889608.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=285&deploy=1";
 const httpMethod = "GET";
@@ -28,6 +34,7 @@ const accessToken =
 const tokenSecret =
   "32385a5c907d51bedd82ae346403e62355a1c4b4d8be5f902d5c709d7d48fde9";
 
+// ✅ OAuth utils
 function getTimestamp() {
   return Math.floor(Date.now() / 1000);
 }
@@ -76,7 +83,10 @@ function buildAuthHeader(params, realm) {
   return "OAuth " + headerParams.join(", ");
 }
 
+// ✅ Main route for proxy
 app.get("/proxy/users", async (req, res) => {
+  console.log("🔥 /proxy/users HIT");
+
   const oauthParams = {
     oauth_consumer_key: consumerKey,
     oauth_token: accessToken,
@@ -86,33 +96,20 @@ app.get("/proxy/users", async (req, res) => {
     oauth_version: "1.0",
   };
 
-  // Ambil param query dari URL (script & deploy)
   const urlObj = new URL(url);
   const queryParams = {};
   urlObj.searchParams.forEach((value, key) => {
     queryParams[key] = value;
   });
 
-  // Gabungkan semua parameter untuk signature (OAuth + query)
   const allParams = { ...queryParams, ...oauthParams };
-
-  // Base URL tanpa query string
   const baseUrl = url.split("?")[0];
-
-  // Buat signature base string
   const baseString = createSignatureBaseString(httpMethod, baseUrl, allParams);
-
-  // Generate signature
   const signature = createSignature(baseString, consumerSecret, tokenSecret);
-
-  // Masukkan signature ke OAuth params
   oauthParams.oauth_signature = signature;
-
-  // Build header Authorization dengan realm
   const authHeader = buildAuthHeader(oauthParams, realm);
 
-  console.log("Authorization header:", authHeader);
-  console.log("Base string:", baseString);
+  console.log("🔐 Authorization header:", authHeader);
 
   try {
     const response = await fetch(url, {
@@ -125,18 +122,19 @@ app.get("/proxy/users", async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Response error:", response.status, errorText);
+      console.error("❌ Response error:", response.status, errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
     const data = await response.json();
     res.json(data);
   } catch (err) {
-    console.error("Proxy error:", err);
+    console.error("❌ Proxy error:", err);
     res.status(500).json({ error: "Proxy call failed", detail: err.message });
   }
 });
 
+// ✅ Start server
 app.listen(port, () => {
-  console.log(`Proxy server listening at http://localhost:${port}`);
+  console.log(`🚀 Proxy server listening at http://localhost:${port}`);
 });
