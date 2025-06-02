@@ -2,7 +2,7 @@
   "name": "pwa-netsuite-user-lookup",
   "version": "1.0.0",
   "scripts": {
-    "start": "node server.js"
+     "start": "node proxy.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
