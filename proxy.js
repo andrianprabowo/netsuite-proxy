@@ -11,7 +11,8 @@ app.use(
     allowedHeaders: "Content-Type,Authorization",
   })
 );
-const port = 3001;
+// const port = 3001;
+const port = process.env.PORT || 3001;
 
 // OAuth Credentials (pastikan ini sudah benar)
 const url =
