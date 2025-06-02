@@ -4,27 +4,13 @@ const CryptoJS = require("crypto-js");
 const cors = require("cors");
 
 const app = express();
-// const port = process.env.PORT;
-const port = process.env.PORT || 8080;
+app.use(cors());
+app.use(express.json()); // untuk parsing JSON body POST
+const port = 3001;
 
-// ✅ CORS Middleware
-app.use(
-  cors({
-    origin: "*", // Ganti dengan domain spesifik jika sudah produksi
-    methods: "GET,POST",
-    allowedHeaders: "Content-Type,Authorization",
-  })
-);
-
-// ✅ Health check endpoint
-app.get("/", (req, res) => {
-  res.send("✅ Proxy is running!");
-});
-
-// ✅ NetSuite OAuth credentials
+// OAuth Credentials
 const url =
   "https://td2889608.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=285&deploy=1";
-const httpMethod = "GET";
 const realm = "TD2889608";
 const consumerKey =
   "228ed224b165f917e366351bcf8bd23fdecc0416c841a1bb0f737cbb81766afa";
@@ -35,7 +21,6 @@ const accessToken =
 const tokenSecret =
   "32385a5c907d51bedd82ae346403e62355a1c4b4d8be5f902d5c709d7d48fde9";
 
-// ✅ OAuth utils
 function getTimestamp() {
   return Math.floor(Date.now() / 1000);
 }
@@ -84,9 +69,9 @@ function buildAuthHeader(params, realm) {
   return "OAuth " + headerParams.join(", ");
 }
 
-// ✅ Main route for proxy
+// GET /proxy/users (ambil data)
 app.get("/proxy/users", async (req, res) => {
-  console.log("🔥 /proxy/users HIT");
+  const httpMethod = "GET";
 
   const oauthParams = {
     oauth_consumer_key: consumerKey,
@@ -110,8 +95,6 @@ app.get("/proxy/users", async (req, res) => {
   oauthParams.oauth_signature = signature;
   const authHeader = buildAuthHeader(oauthParams, realm);
 
-  console.log("🔐 Authorization header:", authHeader);
-
   try {
     const response = await fetch(url, {
       method: httpMethod,
@@ -123,22 +106,69 @@ app.get("/proxy/users", async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("❌ Response error:", response.status, errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
     const data = await response.json();
     res.json(data);
   } catch (err) {
-    console.error("❌ Proxy error:", err);
-    res.status(500).json({ error: "Proxy call failed", detail: err.message });
+    res
+      .status(500)
+      .json({ error: "Proxy GET call failed", detail: err.message });
   }
 });
 
-// ✅ Start server
-// app.listen(port, () => {
-//   console.log(`🚀 Proxy server listening at http://localhost:${port}`);
-// });s
-app.listen(port, "0.0.0.0", () => {
-  console.log(`🚀 Proxy server listening at http://0.0.0.0:${port}`);
+// POST /proxy (kirim data)
+app.post("/proxy", async (req, res) => {
+  const httpMethod = "POST";
+  const postData = req.body;
+
+  const oauthParams = {
+    oauth_consumer_key: consumerKey,
+    oauth_token: accessToken,
+    oauth_nonce: getNonce(),
+    oauth_timestamp: getTimestamp(),
+    oauth_signature_method: "HMAC-SHA256",
+    oauth_version: "1.0",
+  };
+
+  const urlObj = new URL(url);
+  const queryParams = {};
+  urlObj.searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
+
+  const allParams = { ...queryParams, ...oauthParams };
+  const baseUrl = url.split("?")[0];
+  const baseString = createSignatureBaseString(httpMethod, baseUrl, allParams);
+  const signature = createSignature(baseString, consumerSecret, tokenSecret);
+  oauthParams.oauth_signature = signature;
+  const authHeader = buildAuthHeader(oauthParams, realm);
+
+  try {
+    const response = await fetch(url, {
+      method: httpMethod,
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(postData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: errorText });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "Proxy POST call failed", detail: err.message });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Proxy server listening at http://localhost:${port}`);
 });
