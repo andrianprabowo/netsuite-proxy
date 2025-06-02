@@ -135,6 +135,9 @@ app.get("/proxy/users", async (req, res) => {
 });
 
 // ✅ Start server
-app.listen(port, () => {
-  console.log(`🚀 Proxy server listening at http://localhost:${port}`);
+// app.listen(port, () => {
+//   console.log(`🚀 Proxy server listening at http://localhost:${port}`);
+// });
+app.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 Proxy server listening at http://0.0.0.0:${port}`);
 });
