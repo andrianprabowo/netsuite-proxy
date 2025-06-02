@@ -4,7 +4,13 @@ const CryptoJS = require("crypto-js");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://andrianprabowo.my.id", // Atau "*" untuk semua origin (tidak disarankan di production)
+    methods: "GET,POST",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
 const port = 3001;
 
 // OAuth Credentials (pastikan ini sudah benar)
