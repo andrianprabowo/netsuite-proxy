@@ -4,11 +4,27 @@ const CryptoJS = require("crypto-js");
 const cors = require("cors");
 
 const app = express();
-app.use(cors());
-app.use(express.json()); // untuk parsing JSON body POST
-const port = 3001;
+// const port = process.env.PORT;
+const port = process.env.PORT || 8080;
 
-// OAuth Credentials
+// ✅ CORS Middleware
+app.use(
+  cors({
+    origin: "*", // Ganti dengan domain spesifik jika sudah produksi
+    methods: "GET,POST",
+    allowedHeaders: "Content-Type,Authorization",
+  })
+);
+
+// ✅ Middleware parsing JSON untuk POST request
+app.use(express.json());
+
+// ✅ Health check endpoint
+app.get("/", (req, res) => {
+  res.send("✅ Proxy is running!");
+});
+
+// ✅ NetSuite OAuth credentials
 const url =
   "https://td2889608.restlets.api.netsuite.com/app/site/hosting/restlet.nl?script=285&deploy=1";
 const realm = "TD2889608";
@@ -21,6 +37,7 @@ const accessToken =
 const tokenSecret =
   "32385a5c907d51bedd82ae346403e62355a1c4b4d8be5f902d5c709d7d48fde9";
 
+// ✅ OAuth utils
 function getTimestamp() {
   return Math.floor(Date.now() / 1000);
 }
@@ -69,8 +86,10 @@ function buildAuthHeader(params, realm) {
   return "OAuth " + headerParams.join(", ");
 }
 
-// GET /proxy/users (ambil data)
+// ✅ GET route proxy (existing)
 app.get("/proxy/users", async (req, res) => {
+  console.log("🔥 /proxy/users HIT");
+
   const httpMethod = "GET";
 
   const oauthParams = {
@@ -95,6 +114,8 @@ app.get("/proxy/users", async (req, res) => {
   oauthParams.oauth_signature = signature;
   const authHeader = buildAuthHeader(oauthParams, realm);
 
+  console.log("🔐 Authorization header:", authHeader);
+
   try {
     const response = await fetch(url, {
       method: httpMethod,
@@ -106,20 +127,22 @@ app.get("/proxy/users", async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("❌ Response error:", response.status, errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
     const data = await response.json();
     res.json(data);
   } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Proxy GET call failed", detail: err.message });
+    console.error("❌ Proxy error:", err);
+    res.status(500).json({ error: "Proxy call failed", detail: err.message });
   }
 });
 
-// POST /proxy (kirim data)
+// ✅ Tambah route POST proxy
 app.post("/proxy", async (req, res) => {
+  console.log("🔥 /proxy POST HIT");
+
   const httpMethod = "POST";
   const postData = req.body;
 
@@ -145,6 +168,8 @@ app.post("/proxy", async (req, res) => {
   oauthParams.oauth_signature = signature;
   const authHeader = buildAuthHeader(oauthParams, realm);
 
+  console.log("🔐 Authorization header:", authHeader);
+
   try {
     const response = await fetch(url, {
       method: httpMethod,
@@ -157,18 +182,21 @@ app.post("/proxy", async (req, res) => {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("❌ Response error:", response.status, errorText);
       return res.status(response.status).json({ error: errorText });
     }
 
     const data = await response.json();
     res.json(data);
   } catch (err) {
+    console.error("❌ Proxy POST error:", err);
     res
       .status(500)
       .json({ error: "Proxy POST call failed", detail: err.message });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Proxy server listening at http://localhost:${port}`);
+// ✅ Start server
+app.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 Proxy server listening at http://0.0.0.0:${port}`);
 });
