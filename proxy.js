@@ -84,59 +84,56 @@ function buildAuthHeader(params, realm) {
   return "OAuth " + headerParams.join(", ");
 }
 
-app.get("/", (req, res) => {
-  res.status(200).send("✅ Proxy is running! Root path reached");
-});
 // ✅ Main route for proxy
-// app.get("/proxy/users", async (req, res) => {
-//   console.log("🔥 /proxy/users HIT");
+app.get("/proxy/users", async (req, res) => {
+  console.log("🔥 /proxy/users HIT");
 
-//   const oauthParams = {
-//     oauth_consumer_key: consumerKey,
-//     oauth_token: accessToken,
-//     oauth_nonce: getNonce(),
-//     oauth_timestamp: getTimestamp(),
-//     oauth_signature_method: "HMAC-SHA256",
-//     oauth_version: "1.0",
-//   };
+  const oauthParams = {
+    oauth_consumer_key: consumerKey,
+    oauth_token: accessToken,
+    oauth_nonce: getNonce(),
+    oauth_timestamp: getTimestamp(),
+    oauth_signature_method: "HMAC-SHA256",
+    oauth_version: "1.0",
+  };
 
-//   const urlObj = new URL(url);
-//   const queryParams = {};
-//   urlObj.searchParams.forEach((value, key) => {
-//     queryParams[key] = value;
-//   });
+  const urlObj = new URL(url);
+  const queryParams = {};
+  urlObj.searchParams.forEach((value, key) => {
+    queryParams[key] = value;
+  });
 
-//   const allParams = { ...queryParams, ...oauthParams };
-//   const baseUrl = url.split("?")[0];
-//   const baseString = createSignatureBaseString(httpMethod, baseUrl, allParams);
-//   const signature = createSignature(baseString, consumerSecret, tokenSecret);
-//   oauthParams.oauth_signature = signature;
-//   const authHeader = buildAuthHeader(oauthParams, realm);
+  const allParams = { ...queryParams, ...oauthParams };
+  const baseUrl = url.split("?")[0];
+  const baseString = createSignatureBaseString(httpMethod, baseUrl, allParams);
+  const signature = createSignature(baseString, consumerSecret, tokenSecret);
+  oauthParams.oauth_signature = signature;
+  const authHeader = buildAuthHeader(oauthParams, realm);
 
-//   console.log("🔐 Authorization header:", authHeader);
+  console.log("🔐 Authorization header:", authHeader);
 
-//   try {
-//     const response = await fetch(url, {
-//       method: httpMethod,
-//       headers: {
-//         Authorization: authHeader,
-//         "Content-Type": "application/json",
-//       },
-//     });
+  try {
+    const response = await fetch(url, {
+      method: httpMethod,
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+    });
 
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error("❌ Response error:", response.status, errorText);
-//       return res.status(response.status).json({ error: errorText });
-//     }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Response error:", response.status, errorText);
+      return res.status(response.status).json({ error: errorText });
+    }
 
-//     const data = await response.json();
-//     res.json(data);
-//   } catch (err) {
-//     console.error("❌ Proxy error:", err);
-//     res.status(500).json({ error: "Proxy call failed", detail: err.message });
-//   }
-// });
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Proxy error:", err);
+    res.status(500).json({ error: "Proxy call failed", detail: err.message });
+  }
+});
 
 // ✅ Start server
 // app.listen(port, () => {
