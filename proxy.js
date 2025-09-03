@@ -12,7 +12,7 @@ app.use(
   cors({
     origin: "*", // Ganti dengan domain spesifik jika sudah produksi
     methods: "GET,POST",
-    allowedHeaders: "Content-Type,Authorization",
+    allowedHeaders: "Content-Type,Authorization,X-PP-Token", // <- tambahkan X-PP-Token
   })
 );
 
@@ -86,7 +86,7 @@ function buildAuthHeader(params, realm) {
   return "OAuth " + headerParams.join(", ");
 }
 
-// ✅ GET route proxy (existing)
+// ✅ GET route proxy (existing) — forward X-PP-Token
 app.get("/proxy/users", async (req, res) => {
   console.log("🔥 /proxy/users HIT");
 
@@ -116,12 +116,16 @@ app.get("/proxy/users", async (req, res) => {
 
   console.log("🔐 Authorization header:", authHeader);
 
+  // ambil token dari header/query client
+  const clientToken = req.header("x-pp-token") || req.query.token || "";
+
   try {
     const response = await fetch(url, {
       method: httpMethod,
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
+        ...(clientToken ? { "X-PP-Token": clientToken } : {}), // ← forward token ke Restlet
       },
     });
 
@@ -139,7 +143,7 @@ app.get("/proxy/users", async (req, res) => {
   }
 });
 
-// ✅ Tambah route POST proxy
+// ✅ POST proxy — forward X-PP-Token juga
 app.post("/proxy", async (req, res) => {
   console.log("🔥 /proxy POST HIT");
 
@@ -170,14 +174,19 @@ app.post("/proxy", async (req, res) => {
 
   console.log("🔐 Authorization header:", authHeader);
 
+  // token bisa datang dari header / body / query
+  const clientToken =
+    req.header("x-pp-token") || req.body?.token || req.query?.token || "";
+
   try {
     const response = await fetch(url, {
       method: httpMethod,
       headers: {
         Authorization: authHeader,
         "Content-Type": "application/json",
+        ...(clientToken ? { "X-PP-Token": clientToken } : {}), // ← forward token ke Restlet
       },
-      body: JSON.stringify(postData),
+      body: JSON.stringify(postData), // biarkan body seperti semula
     });
 
     if (!response.ok) {
